@@ -8,8 +8,6 @@
 #include <sys/attribs.h>
 #include <xc.h>
 #include <stdio.h>
-#include "thermo_k.h"
-#include "pi.h"
 
 
 /* GLOBAL VARIABLES/DEFINES FOR THE INTERRUPTS */
