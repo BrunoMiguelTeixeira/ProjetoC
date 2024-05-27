@@ -8,8 +8,6 @@
 #include <sys/attribs.h>
 #include <xc.h>
 #include <stdio.h>
-#include "thermo_k.h"
-#include "pi.h"
 
 
 /* GLOBAL VARIABLES/DEFINES FOR THE INTERRUPTS */
@@ -23,6 +21,8 @@
 #define SCALE2_MODE 1                   /**< Scale 2 Mode (0-800g) */
 #define AUTO_MODE   2                   /**< Automatic Mode */
 
+#define ADC_SAMPLES 50                  /**< Number of ADC samples to average */
+
 volatile uint8_t scaleFlag = 0;         /**< Flag to identify the scale choice */
 volatile uint8_t tareFlag = 0;          /**< Flag to identify the tare choice */
 volatile uint8_t maxFlag = 0;           /**< Flag to identify the max choice */
@@ -32,9 +32,16 @@ volatile uint8_t holdFlag = 0;          /**< Flag to identify the hold choice */
 volatile uint8_t newScale = 0, newTare = 0, newMax = 0, newHold = 0;
 volatile uint8_t oldScale = 0, oldTare = 0, oldMax = 0, oldHold = 0;
 
-volatile uint16_t val = 0;               /**< Variable to hold the ADC value */
-volatile uint16_t tareVal = 0;           /**< Variable to hold the tare value */
-volatile uint16_t printVal = 0;          /**< Variable to hold the ADC value to print */
+volatile float val = 0;              /**< Variable to hold the ADC value */
+volatile double valSum = 0;           /**< Variable to hold the sum of the ADC values */
+volatile float tareVal = 0;          /**< Variable to hold the tare value */
+volatile float printVal = 0;         /**< Variable to hold the ADC value to print */
+volatile float maxVal = 0;           /**< Variable to hold the maximum value read */
+volatile float holdVal = 0;          /**< Variable to hold the hold value read */
+volatile uint8_t adcCount = 0;          /**< Variable to hold the number of ADC reads */
+
+volatile uint8_t choice = 0;            /**< Variable to hold the user's choice. */
+volatile uint8_t value = 0;             /**< Variable to hold the sequence of numbers. */
 
 uint8_t scaleMode = 0;                  /**< Variable to hold the scale mode */
 
@@ -64,16 +71,118 @@ void __ISR (_TIMER_2_VECTOR, IPL5SOFT) T2Interrupt(void)
 /* INTERRUPT CALLBACK TIMER3, READ ADC value */
 void __ISR (_TIMER_3_VECTOR, IPL5SOFT) T3Interrupt(void)
 {
-    // Read the value from the ADC (Thermocouple)
-    val = 0;
-    ADC_input(ADC_CHAN_SCALE);
-    ADC_start();
-    while(ADC_IF() == 0);
-    val = ADC_read();
-    
-    // Conversion to Millivolts
-    val = (val*3300) / 1023;
 
+    // Read the value from the ADC (Thermocouple)
+    switch (scaleMode)
+    {
+    case 0:
+        /* Automatic Mode; Start reading from the Scale1 ADC,
+         * if the value surpasses 3.1V (3100mV), read the 
+         * Scale2 ADC.
+         */
+        val = 0;
+        ADC_input(ADC_CHAN_SCALE1);
+        ADC_start();
+        while(ADC_IF() == 0);
+        val = ADC_read();
+        val = (val*3300) / 1023;
+
+        
+
+        if(val > 3100){
+            val = 0;
+            ADC_input(ADC_CHAN_SCALE2);
+            ADC_start();
+            while(ADC_IF() == 0);
+            val = ADC_read();
+            val = (val*3300) / 1023;
+
+            /* if(val - 37 < 0)
+                {val = 0;}
+            else
+                {val = val - 37;} // Offset to the scale */
+            
+            /* Take care of the val to g*/
+            val = val / 3.4;
+        }
+        else{
+            /* if(val - 82 < 0)
+                {val = 0;}
+            else
+                {val = val - 82;} // Offset to the scale */
+
+            val = val / 7.432;
+            
+            /* Take care of the val to g*/
+        }
+        break;
+    
+    case 1:
+        /* Scale 1 Mode; Read the Scale1 ADC */
+        val = 0;
+        ADC_input(ADC_CHAN_SCALE1);
+        ADC_start();
+        while(ADC_IF() == 0);
+        val = ADC_read();
+        val = (val*3300) / 1023;
+
+        /* if(val - 82 < 0)
+            {val = 0;}
+        else
+            {val = val - 82;} // Offset to the scale */
+        
+        val = val / 7.65;
+
+        /* Take care of the val to g*/
+        break;
+    case 2:
+        /* Scale 2 Mode; Read the Scale2 ADC */
+        val = 0;
+        ADC_input(ADC_CHAN_SCALE2);
+        ADC_start();
+        while(ADC_IF() == 0);
+        val = ADC_read();
+        val = (val*3300) / 1023;
+
+        /* if(val - 37 < 0)
+            {val = 0;}
+        else
+            {val = val - 37;} // Offset to the scale */
+        
+        val = val / 3.4;
+
+        /* Take care of the val to g*/
+        break;
+    default:
+        break;
+    }
+
+    if(adcCount < ADC_SAMPLES){
+        adcCount++;
+        valSum += val;
+    }
+    else{
+        val = valSum / ADC_SAMPLES;
+        valSum = 0;
+        adcCount = 0;
+
+        printVal = val - tareVal;
+
+        if(maxFlag){
+            // If the maxFlag is set, hold the maximum value read
+            if(printVal > maxVal){
+                maxVal = val - tareVal;
+            }
+            printVal = maxVal;
+        }
+        else if(holdFlag){
+            // If the holdFlag is set, hold the current value read
+            printVal = holdVal;
+        }
+
+    }
+
+    
     IFS1bits.AD1IF = 0; // Reset interrupt ADC
     ClearIntFlagTimer3();
 }
@@ -90,16 +199,38 @@ void __ISR(_CHANGE_NOTICE_VECTOR, IPL6SOFT) CNInterrupt(void){
 
     // If a rising edge is detected on the button, set the flags
     if(newScale && !oldScale){
-        scaleFlag = 1;
+        PutStringn("Scale");
+        scaleMode++;
+        if(scaleMode == 3){
+            scaleMode = 0;
+        }
     }
     else if(newTare && !oldTare){
-        tareFlag = 1;
+        PutStringn("Tare");
+        tareVal = val;
     }
     else if(newMax && !oldMax){
-        maxFlag = 1;
+        PutStringn("Max");
+        // To avoid the scale being in two modes at the same time:
+        holdFlag = 0;
+
+        maxFlag = !maxFlag;
+        maxVal = 0;
     }
     else if(newHold && !oldHold){
-        holdFlag = 1;
+        PutStringn("Hold");
+        // To avoid the scale being in two modes at the same time:
+        maxFlag = 0;
+
+        holdFlag = !holdFlag;
+
+        /* Using the "printVal" as our holdVal means that
+         * we'll be reading the val without the tare value,
+         * along with that, it could also be the last maxVal
+         * read, if the user pressed the MAX button before the HOLD
+         * button. If that's the case, the holdVal will be the last maxVal.
+         */
+        holdVal = printVal;
     }
 
     oldScale = newScale;
@@ -145,6 +276,7 @@ int main(void){
     IPC6bits.CNIS = 5;          // Set CN interrupt sub-priority  
     IFS1bits.CNIF = 0;          // Reset CN interrupt flag
     IEC1bits.CNIE = 1;          // Enable CN interrupt
+    /* ------------------------------------------------ */
 
     /* --------------- SETUP INTERRUPTS --------------- */
     /* Set Interrupt Controller for multi-vector mode */
@@ -165,16 +297,17 @@ int main(void){
 
     /* ------------------ SETUP ADC ------------------- */
     ADC_init();           
-    ADC_input(ADC_CHAN_THERMO); // Set the input channel for the ADC       
+    ADC_input(ADC_CHAN_SCALE1); // Set the input channel for the ADC (Scale 1)      
+    ADC_input(ADC_CHAN_SCALE2); // Set the input channel for the ADC (Scale 2
     ADC_enable();
     /* ------------------------------------------------ */
 
     /* -------------- SETUP TIMERS & PWM -------------- */
-    ConfigTimer2(PWM_FREQ_HZ, 0);   // Output 
+    // ConfigTimer2(PWM_FREQ_HZ, 0);   // Output 
     ConfigTimer3(SAMPL_FREQ_HZ);    // Input 
     ConfigTimer4(3, 1);             // Timer 4, 32 bit mode (Due to 1Hz frequency)
 
-    StartTimer2();
+    // StartTimer2();
     StartTimer3(); 
     StartTimer4();    
     
@@ -206,42 +339,11 @@ int main(void){
 
 
     while(1){        
-        // Check the flags of the buttons and act accordingly
-        if(scaleFlag){
-            /* If the scaleFlag is set, increment the k variable
-             * to change the scale mode. The scaleMode variable is used to
-             * identify the scale mode (0-400g; 0-800g; Automatic)
-             */
-            scaleFlag = 0;
-            scaleMode++;
-            if(scaleMode == 3){
-                scaleMode = 0;
-            }
-        }
-        else if(tareFlag){
-            /* If the tareFlag is set, then set the read value
-             * as the new '0'
-             */
-            tareVal = val;
-            tareFlag = 0;
-        }
-        else if(maxFlag){
-            /* If the maxFlag is set, then hold the maximum value
-             * read until the user presses the button again
-             */
-            maxFlag = 0;
-        }
-        else if(holdFlag){
-            /* If the holdFlag is set, then hold the current value
-             * read until the user presses the button again
-             */
-            holdFlag = 0;
-        }
 
         // Timer 4 & 5 (32bit mode) to print the menu (Polling Method)
         if(GetIntFlagTimer5()){
-            DefaultMenu(total_temp, minTempRead, maxTempRead);      // Print the default menu (Temp)
-            Menu(choice, value, pi.kp, pi.ki);                // Print the menu with the choice and value 
+            DefaultMenu(printVal);      // Print the default menu (Temp)
+            Menu(choice, value);                // Print the menu with the choice and value 
             PORTCbits.RC1 = !PORTCbits.RC1;     // Toggle LED to see the timer's timing
             ClearIntFlagTimer5();
         }
@@ -283,7 +385,7 @@ int main(void){
                 choice = 0;
                 optionChoice = 1;
             }
-        }     
+        } 
     } 
     return 0;
 }
