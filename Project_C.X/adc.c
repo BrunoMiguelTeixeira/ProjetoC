@@ -5,7 +5,7 @@ void ADC_init(void){
     AD1CON1bits.CLRASAM = 1;//Auto-Sample Start bit
     AD1CON1bits.FORM = 0;   //choose the output format -> Integer 16 bit
     AD1CON2bits.VCFG = 0;   //Voltage Reference Configuration bits VR+=AVdd; VR-=AVss
-    AD1CON2bits.SMPI = 0;   // Number (+1) of consecutive conversions, stored in ADC1BUF0...ADCBUF{SMPI} before interruption
+    AD1CON2bits.SMPI = 15;   // Number (+1) of consecutive conversions, stored in ADC1BUF0...ADCBUF{SMPI} before interruption
     AD1CON3bits.ADRC = 1;   //ADC Clock Source Select bit, internal RC clock
     AD1CON3bits.SAMC = 16;  //set the duration of the auto-sample time,16 clock cycles, each cycle Sample time is 16TAD ( TAD = 100ns)
 }
@@ -25,6 +25,16 @@ void ADC_enable(void){
 }
 uint16_t ADC_read(void){
     return (uint16_t)ADC1BUF0;
+}
+
+float ADC_read_avg(void){
+    uint64_t sum = 0;
+    sum = ADC1BUF0 + ADC1BUF1 + ADC1BUF2 + ADC1BUF3
+        + ADC1BUF4 + ADC1BUF5 + ADC1BUF6 + ADC1BUF7
+        + ADC1BUF8 + ADC1BUF9 + ADC1BUFA + ADC1BUFB
+        + ADC1BUFC + ADC1BUFD + ADC1BUFE + ADC1BUFF;
+    
+    return sum/16;
 }
 
 uint8_t ADC_IF(void){

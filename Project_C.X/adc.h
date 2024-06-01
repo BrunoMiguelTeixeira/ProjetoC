@@ -51,6 +51,8 @@ void ADC_enable(void);
  */
 uint16_t ADC_read(void);
 
+float ADC_read_avg(void);
+
 /**
  * Function: ADC_IF()\n
  * Precondition:\n

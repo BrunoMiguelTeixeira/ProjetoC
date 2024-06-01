@@ -5,13 +5,55 @@
 #include <xc.h>
 #include <stdio.h>
 
-void DefaultMenu(float weight){
+#define OVERFLOW 10000
+
+void DefaultMenu(float weight, uint8_t mode, float tareVal, uint8_t maxFlag, uint8_t holdFlag){
     PutString("\e[1;1H\e[2J");  //Clear screen  
     PutString("\e[33m");        // Make the letters yellow
     
     PutString("Current Weight: ");
-    PutFloat(weight,1);
-    PutString("  g");
+    if(weight == OVERFLOW){
+        PutStringn("OVERFLOW");
+    }
+    else{
+        PutInt(weight);
+        PutStringn("  g");
+    }
+    
+
+    PutChar('\n');
+    PutString("Scale Mode: ");
+    switch(mode){
+        case 0:
+            PutString("Auto   (0 .. 800) g");
+            break;
+        case 1:
+            PutString("Scale1 (0 .. 400) g");
+            break;
+        case 2:
+            PutString("Scale2 (0 .. 800) g");
+            break;
+        default:
+            break;
+    }
+
+    PutString("\tTare Value: ");
+    PutInt(tareVal);
+
+    PutString("\tMax Mode: ");
+    if(maxFlag){
+        PutString("ON");
+    }else{
+        PutString("OFF");
+    }
+
+    PutString("\tHold Mode: ");
+    if(holdFlag){
+        PutString("ON");
+    }else{
+        PutString("OFF");
+    }
+    
     PutStringn("\e[0m");         // Reset to default color (white)
 }
 
@@ -34,13 +76,13 @@ void Menu(uint8_t option, int value){
             PutStringn(" ");
             break;
         case 2:
-            PutStringn("Tare redefined; Press Enter.");
+            PutStringn("When ready press Enter to set the Tare value.");
             break;
         case 3:
-            PutStringn("");
+            PutStringn("When ready press Enter to change the Max Mode.");
             break;
         case 4:
-            PutStringn("");
+            PutStringn("When ready press Enter to change the Hold Mode.");
             break;
         default:
             PutStringn("Invalid Option; Press Enter.");
