@@ -23,8 +23,8 @@
 
 #define ADC_SAMPLES 50                  /**< Number of ADC samples to average */
 #define ADC_SWITCH  3100                /**< Value to switch between scales */
-#define ADC1_GAIN   4.845f                 /**< Gain for the Scale 1 */
-#define ADC2_GAIN   2.415f                 /**< Gain for the Scale 2 */
+#define ADC1_GAIN   4.6f                 /**< Gain for the Scale 1 */
+#define ADC2_GAIN   2.2f                 /**< Gain for the Scale 2 */
 #define MV_TO_G     1.33f                /**< mV to g conversion factor */
 #define OVERFLOW    10000                /**< Overflow value for the scale */
 
