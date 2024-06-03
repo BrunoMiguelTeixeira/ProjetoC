@@ -11,6 +11,7 @@ void DefaultMenu(float weight, uint8_t mode, float tareVal, uint8_t maxFlag, uin
     PutString("\e[1;1H\e[2J");  //Clear screen  
     PutString("\e[33m");        // Make the letters yellow
     
+    // Print the current weight
     PutString("Current Weight: ");
     if(weight == OVERFLOW){
         PutStringn("OVERFLOW");
@@ -20,7 +21,7 @@ void DefaultMenu(float weight, uint8_t mode, float tareVal, uint8_t maxFlag, uin
         PutStringn("  g");
     }
     
-
+    // Print the current configuration
     PutChar('\n');
     PutString("Scale Mode: ");
     switch(mode){

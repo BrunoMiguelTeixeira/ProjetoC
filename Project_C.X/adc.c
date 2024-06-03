@@ -29,11 +29,13 @@ uint16_t ADC_read(void){
 
 float ADC_read_avg(void){
     uint64_t sum = 0;
+    // Sum all 16 buffer values
     sum = ADC1BUF0 + ADC1BUF1 + ADC1BUF2 + ADC1BUF3
         + ADC1BUF4 + ADC1BUF5 + ADC1BUF6 + ADC1BUF7
         + ADC1BUF8 + ADC1BUF9 + ADC1BUFA + ADC1BUFB
         + ADC1BUFC + ADC1BUFD + ADC1BUFE + ADC1BUFF;
     
+    // Return average
     return sum/16;
 }
 

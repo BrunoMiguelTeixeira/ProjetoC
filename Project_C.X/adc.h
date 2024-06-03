@@ -46,11 +46,20 @@ void ADC_enable(void);
  * Input: None\n
  * Output: Float\n
  * Side Effects: None\n
- * Overview: Function reads ADC BUF0 and outputs has float\n
+ * Overview: Function reads ADC BUF0 and outputs as uint16_t\n
  * Note: None\n
  */
 uint16_t ADC_read(void);
 
+/**
+ * Function: ADC_read_avg()\n
+ * Precondition: \n
+ * Input: None\n
+ * Output: Float\n
+ * Side Effects: None\n
+ * Overview: Function reads ADC BUF array and outputs as float\n
+ * Note: None\n
+ */
 float ADC_read_avg(void);
 
 /**
